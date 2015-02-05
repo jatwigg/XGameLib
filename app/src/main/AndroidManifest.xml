@@ -5,4 +5,7 @@
 
     </application>
 
+    <!-- TODO: in gameactivity grab this in create(), apply in resume and release in pause(). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
 </manifest>

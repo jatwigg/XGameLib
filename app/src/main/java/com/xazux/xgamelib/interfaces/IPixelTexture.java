@@ -9,5 +9,5 @@ public interface IPixelTexture {
     int getWidth();
     int getHeight();
     void dispose();
-    PixelTextureFormat getFormat();
+    android.graphics.Bitmap.Config getFormat();
 }

@@ -6,7 +6,7 @@ package com.xazux.xgamelib.interfaces;
 public interface IGameState {
     void initialise();
     void update(float deltaTime);
-    void render(ISpriteBatch spriteBatch);
+    void render();
     void dispose();
 
     void pause();
