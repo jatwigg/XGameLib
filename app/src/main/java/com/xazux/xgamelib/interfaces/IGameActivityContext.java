@@ -8,18 +8,18 @@ import com.xazux.xgamelib.GameActivity;
 /**
  * Created by josh on 04/02/15.
  */
-public interface IGameActivityContext extends IDrawingContext {
-    void registerGameState(Class<IGameState> state);
-    void registerGameState(Class<IGameState> state, Class<IGameState> transitionState);
+public interface IGameActivityContext {
+    void switchState(Class<IGameState> state);
+    void switchState(Class<IGameState> state, Class<ITransitionState> transition);
 
+    IJukeBox getJukebox();
     AssetManager getAssets();
-    IJukeBox jukebox();
-    ISoundEffect soundEffects();
+    ISoundEffect getSoundEffects();
 
     void initialise();
     void update(float delta);
     void render(); //useful for debug information to be layered on top perhaps?
     void dispose();
 
-    Activity activity();
+    Activity getActivity();
 }

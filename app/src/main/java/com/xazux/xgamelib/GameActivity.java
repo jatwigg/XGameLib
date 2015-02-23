@@ -10,6 +10,7 @@ import android.view.WindowManager;
 
 import com.xazux.xgamelib.interfaces.IJukeBox;
 import com.xazux.xgamelib.interfaces.ISoundEffect;
+import com.xazux.xgamelib.interfaces.ITransitionState;
 import com.xazux.xgamelib.sound.JukeBox;
 import com.xazux.xgamelib.interfaces.IGameActivityContext;
 import com.xazux.xgamelib.interfaces.IGameState;
@@ -19,24 +20,36 @@ import com.xazux.xgamelib.sound.SoundEffects;
  * Created by josh on 05/02/15.
  */
 public abstract class GameActivity extends Activity implements IGameActivityContext {
-
     private JukeBox _jukebox;
     private SoundEffects _soundEffects;
     private PowerManager.WakeLock _wakeLock;
+    private GameLoopThread _thread;
+
+    volatile boolean isInitialised = false;
+    volatile IGameState currentState;
+    volatile Class<IGameState> desiredState;
+    volatile Class<ITransitionState> transitionState;
 
     @Override
     public void onCreate(Bundle savedInstanceState, PersistableBundle persistentState) {
         requestWindowFeature(Window.FEATURE_NO_TITLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+
+        setupGraphics();
+
         PowerManager powerManager = (PowerManager)getSystemService(Context.POWER_SERVICE);
         _wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, getCallingPackage() + "wakelock"); //TODO investigate the use of FLAG_KEEP_SCREEN_ON (API 17 and above)
     }
+
+    protected abstract GLSettings setupGraphics();
 
     @Override
     protected void onResume() {
         super.onResume();
         if (!_wakeLock.isHeld())
             _wakeLock.acquire();
+        // check existing thread is finished
+        _thread.startThread();
     }
 
     @Override
@@ -46,27 +59,37 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
             _wakeLock.release();
         if (isFinishing()) {
             // activity is closing, dispose stuff
-            _jukebox.dispose();
+            internalDispose();
         }
     }
 
     @Override
-    public void registerGameState(Class<IGameState> state) {
-
+    public void switchState(Class<IGameState> state) {
+        if (state == null) {
+            finish();
+        } else {
+            desiredState = state;
+            transitionState = null;
+        }
     }
 
     @Override
-    public void registerGameState(Class<IGameState> state, Class<IGameState> transitionState) {
-
+    public void switchState(Class<IGameState> state, Class<ITransitionState> transition) {
+        if (state == null) {
+            finish();
+        } else {
+            desiredState = state;
+            transitionState = transition;
+        }
     }
 
     @Override
-    public IJukeBox jukebox() {
+    public IJukeBox getJukebox() {
         return _jukebox;
     }
 
     @Override
-    public ISoundEffect soundEffects() {
+    public ISoundEffect getSoundEffects() {
         return _soundEffects;
     }
 
@@ -79,16 +102,7 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
     void internalDispose() {
         _jukebox.dispose();
         _soundEffects.dispose();
+        //todo - call dispose on current state if gameloop has quit
         dispose();
-    }
-
-    @Override
-    public int getWidth() {
-        return 0;
-    }
-
-    @Override
-    public int getHeight() {
-        return 0;
     }
 }

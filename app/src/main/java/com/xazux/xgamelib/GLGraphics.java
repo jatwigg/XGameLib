@@ -1,13 +1,13 @@
-package com.xazux.xgamelib.drawing;
+package com.xazux.xgamelib;
 
-import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.util.Log;
 
+import com.xazux.xgamelib.drawing.PixelTexture;
+import com.xazux.xgamelib.drawing.PixelTextureFormat;
 import com.xazux.xgamelib.interfaces.ICircle;
 import com.xazux.xgamelib.interfaces.IGameActivityContext;
-import com.xazux.xgamelib.interfaces.IGraphics10;
+import com.xazux.xgamelib.interfaces.IGraphics;
 import com.xazux.xgamelib.interfaces.ILine;
 import com.xazux.xgamelib.interfaces.IPixelTexture;
 import com.xazux.xgamelib.interfaces.IRect;
@@ -19,8 +19,14 @@ import java.util.HashMap;
 /**
  * Created by josh on 05/02/15.
  */
-public class Graphics10 implements IGraphics10 {
-    HashMap<String, PixelTexture> _textureCache = new HashMap<>();
+public class GLGraphics implements IGraphics {
+    private HashMap<String, PixelTexture> _textureCache = new HashMap<>();
+    private int _width, _height;
+
+    void initialise(GLSettings settings) {
+        _height = settings.height;
+        _width = settings.width;
+    }
 
     @Override
     public void clear(int colour) {

@@ -5,7 +5,7 @@ import com.xazux.xgamelib.drawing.PixelTextureFormat;
 /**
  * Created by josh on 04/02/15.
  */
-public interface IGraphics10 extends IDrawingContext {
+public interface IGraphics extends IDrawingContext {
     void clear(int colour);
     void drawRect(IRect rect);
     void drawCircle(ICircle circle);

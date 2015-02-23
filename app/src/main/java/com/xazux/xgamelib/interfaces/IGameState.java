@@ -4,7 +4,7 @@ package com.xazux.xgamelib.interfaces;
  * Created by josh on 04/02/15.
  */
 public interface IGameState {
-    void initialise();
+    void initialise(IGameActivityContext context);
     void update(float deltaTime);
     void render();
     void dispose();

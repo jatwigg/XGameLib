@@ -9,6 +9,7 @@ public interface IPolygon extends ICollideableShape {
 
     int pointCount();
     IVector2D point(int position);
+    IVector2D points();
 
     int lineCount();
     ILineSegment line(int position);

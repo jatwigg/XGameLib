@@ -9,6 +9,9 @@ public interface IRect extends ICollideableShape {
     float right();
     float bottom();
 
+    float width();
+    float height();
+
     void left(float f);
     void top(float f);
     void right(float f);
