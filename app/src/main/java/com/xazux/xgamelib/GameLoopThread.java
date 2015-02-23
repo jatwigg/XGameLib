@@ -1,6 +1,5 @@
 package com.xazux.xgamelib;
 
-import android.os.SystemClock;
 import android.util.Log;
 
 import com.xazux.xgamelib.interfaces.IGameActivityContext;
@@ -21,14 +20,16 @@ class GameLoopThread implements Runnable {
 
     // context and state
     private volatile Thread _thread;
+    private volatile Thread _threadStateSwitcher;
+
     private final GameActivity _gameActivity;
-    private volatile boolean _isRunning = true; // volatile, so 'setting' thread and 'this' thread don't have an inconsistent value for it
+    private volatile boolean _stateSwitchingThreadShouldRun = true;
+    private volatile boolean _gameLoopShouldRun = true;
+    private volatile boolean _newStateIsReady = false;
     private volatile IGameState newReadyState = null;
-    private volatile boolean _threadHasBeenToldToEnd = false;
 
     public GameLoopThread(GameActivity context) {
         _gameActivity = context;
-        _thread = new Thread(this);
     }
 
     @Override
@@ -50,11 +51,21 @@ class GameLoopThread implements Runnable {
         long startTime, timeDiff, endTime = System.nanoTime(), sleepTime;
         int framesSkipped;
 
-        while (_isRunning) {
+        while (_gameLoopShouldRun) {
             // get time now
             startTime = System.nanoTime();
             timeDiff = startTime - endTime;
 
+            if (_newStateIsReady) {
+                // set new state
+                _gameActivity.currentState = newReadyState;
+                if (_threadStateSwitcher != null) {
+                    _threadStateSwitcher.interrupt();
+                }
+                _newStateIsReady = false;
+                // set new state
+                _gameActivity.currentState = newReadyState;
+            }
             // check for state change
             if (_gameActivity.desiredState != null) {
                 // finish current state (null if first time
@@ -70,35 +81,13 @@ class GameLoopThread implements Runnable {
                         Log.e(getClass().getSimpleName(), "Exception raised trying to instantiate new transition state", e);
                         throw new RuntimeException(e);
                     }
+                    //clear state
+                    _gameActivity.transitionState = null;
+                    // initialise transition
                     _gameActivity.currentState.initialise(_gameActivity);
                 }
                 // now start initialising desired game state in another thread
-                new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        // create instance
-                        IGameState desiredGameState;
-                        try {
-                            desiredGameState = instantiate(_gameActivity.desiredState);
-                        }
-                        catch (Exception e) {
-                            Log.e(getClass().getSimpleName(), "Exception raised trying to instantiate new desired state", e);
-                            throw new RuntimeException(e);
-                        }
-                        // init instance
-                        desiredGameState.initialise(_gameActivity);
-                        // let main thread know states ready for updating
-                        newReadyState = desiredGameState;
-                        // if thread has exited, go ahead and dispose and update current thread
-                        if (_threadHasBeenToldToEnd) {
-                            if (_gameActivity.currentState != null) {
-                                _gameActivity.currentState.dispose();
-                            }
-                            //else race condition - todo solve this
-                            _gameActivity.currentState = newReadyState;
-                        }
-                    }
-                }).start();
+                _threadStateSwitcher.interrupt();
             }
 
             // update game logic
@@ -111,6 +100,9 @@ class GameLoopThread implements Runnable {
                 _gameActivity.render();
             }
         }
+        // game loop ended
+
+
         Log.d(this.getClass().getSimpleName(), "/GameLoopThread");
     }
 
@@ -119,7 +111,10 @@ class GameLoopThread implements Runnable {
         return (IGameState) ctor.newInstance(new Object[]{this});
     }
 
-    public void startThread() {
+    public void endThreads() {
+        _gameLoopShouldRun = false;
+        _stateSwitchingThreadShouldRun = false;
+
         while (_thread != null && _thread.isAlive()) {
             try {
                 _thread.interrupt();
@@ -129,8 +124,70 @@ class GameLoopThread implements Runnable {
                 Log.d(getClass().getSimpleName(), "Thread exception ", e);
             }
         }
-        // start new thread
+
+        while (_threadStateSwitcher != null && _threadStateSwitcher.isAlive()) {
+            try {
+                _threadStateSwitcher.interrupt();
+                _threadStateSwitcher.join(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void startThreads() {
+        endThreads();
+        // start new threads
+        _threadStateSwitcher = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    this.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                while (_stateSwitchingThreadShouldRun) {
+                    // create instance
+                    IGameState desiredGameState;
+                    try {
+                        desiredGameState = instantiate(_gameActivity.desiredState);
+                    } catch (Exception e) {
+                        Log.e(getClass().getSimpleName(), "Exception raised trying to instantiate new desired state", e);
+                        throw new RuntimeException(e);
+                    }
+                    // clear state
+                    _gameActivity.desiredState = null;
+
+                    // init instance
+                    desiredGameState.initialise(_gameActivity);
+                    // let main thread know states ready for updating
+                    newReadyState = desiredGameState;
+                    _newStateIsReady = true;
+
+                    // save transition state
+                    IGameState transitionState = _gameActivity.currentState;
+
+                    // wait to be woken up by main thread, then we know its safe to dispose and switch states
+                    try {
+                        this.wait();
+                    } catch (InterruptedException e) {
+                        //ready
+                    }
+
+                    // dispose and transition state
+                    if (transitionState != null) {
+                        transitionState.dispose();
+                    }
+                    // i am complete
+                    try {
+                        this.wait();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            };
+        });
+        _threadStateSwitcher.start();
         _thread = new Thread(this);
-        _thread.start();
     }
 }

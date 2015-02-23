@@ -49,7 +49,7 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
         if (!_wakeLock.isHeld())
             _wakeLock.acquire();
         // check existing thread is finished
-        _thread.startThread();
+        _thread.startThreads();
     }
 
     @Override
@@ -57,6 +57,7 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
         super.onPause();
         if (_wakeLock.isHeld())
             _wakeLock.release();
+        _thread.endThreads();
         if (isFinishing()) {
             // activity is closing, dispose stuff
             internalDispose();
@@ -68,8 +69,8 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
         if (state == null) {
             finish();
         } else {
-            desiredState = state;
             transitionState = null;
+            desiredState = state;
         }
     }
 
@@ -78,8 +79,8 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
         if (state == null) {
             finish();
         } else {
-            desiredState = state;
             transitionState = transition;
+            desiredState = state;
         }
     }
 
@@ -102,7 +103,6 @@ public abstract class GameActivity extends Activity implements IGameActivityCont
     void internalDispose() {
         _jukebox.dispose();
         _soundEffects.dispose();
-        //todo - call dispose on current state if gameloop has quit
         dispose();
     }
 }
